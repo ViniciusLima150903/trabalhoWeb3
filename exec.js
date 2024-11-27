@@ -1,128 +1,162 @@
 class DiscosAPI {
-    constructor() {
-        this.apiUrl = 'https://ucsdiscosapi.azurewebsites.net/Discos';
-        this.authToken = null;
-        this.currentPage = 1;  // Página inicial para carregar álbuns
-        this.pageSize = 12;    // Quantidade de registros por página
-    }
+  constructor() {
+    this.apiUrl = "https://ucsdiscosapi.azurewebsites.net/Discos";
+    this.authToken = null;
+    this.currentPage = 1; // Página inicial para carregar álbuns
+    this.pageSize = 7; // Quantidade de registros por página
+    this.numeroInicio = 1; // Primeiro registro
+    this.maxRecords = 98; // Número máximo de registros
+  }
 
-    // Função para autenticar e obter o token
-    authenticate() {
-        $('#loading').removeClass('d-none');  // Exibe o loader
+  // Função para autenticar e obter o token
+  authenticate() {
+    $("#loading").removeClass("d-none"); // Exibe o loader
 
-        fetch(`${this.apiUrl}/autenticar`, {
-            method: 'POST',
-            headers: {
-                'accept': '*/*'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            this.authToken = data.TokenApiUCS;  // Armazena o token
-            this.loadAlbums();  // Carrega os álbuns após a autenticação
-        })
-        .catch(error => {
-            alert("Erro ao autenticar. Tente novamente.");
-            console.error(error);
-        })
-        .finally(() => $('#loading').addClass('d-none'));  // Esconde o loader
-    }
+    fetch(`${this.apiUrl}/autenticar`, {
+      method: "POST",
+      headers: {
+        accept: "*/*",
+        ChaveApi: "8175fA5f6098c5301022f475da32a2aa", // Inclui a chave no cabeçalho
+      },
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Erro na resposta da autenticação");
+        }
+        return response.text();
+      })
+      .then((token) => {
+        try {
+          this.authToken = token;
+          this.loadAlbums();
+        } catch (error) {
+          alert("Erro ao autenticar. Resposta inválida da API.");
+        }
+      })
+      .catch((error) => {
+        alert("Erro ao autenticar. Tente novamente.");
+        console.error(error);
+      })
+      .finally(() => $("#loading").addClass("d-none")); // Esconde o loader
+  }
 
-    // Função para carregar os álbuns (records)
-    loadAlbums() {
-        if (!this.authToken) return;  // Se não houver token, não faz nada
+  // Função para carregar os álbuns (records)
+  loadAlbums() {
+    if (!this.authToken) return; // Se não houver token, não faz nada
 
-        $('#loading').removeClass('d-none');  // Exibe o loader
+    $("#loading").removeClass("d-none"); // Exibe o loader
 
-        fetch(`${this.apiUrl}/records?numero=${this.currentPage}&quantidade=${this.pageSize}`, {
-            method: 'GET',
-            headers: {
-                'accept': '*/*',
-                'TokenApiUCS': this.authToken
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            const albums = data.records;
-            this.renderAlbums(albums);
-            this.currentPage++;  // Incrementa a página para o próximo carregamento
-        })
-        .catch(error => {
-            alert("Erro ao carregar álbuns.");
-            console.error(error);
-        })
-        .finally(() => $('#loading').addClass('d-none'));  // Esconde o loader
-    }
+    fetch(
+      `${this.apiUrl}/records?numeroInicio=${this.numeroInicio}&quantidade=${this.pageSize}`,
+      {
+        method: "GET",
+        headers: {
+          accept: "*/*",
+          TokenApiUCS: this.authToken,
+        },
+      }
+    )
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Erro na resposta da autenticação");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (data.length > 0) {
+          this.renderAlbums(data);
 
-    // Função para renderizar os álbuns na tela
-    renderAlbums(albums) {
-        const gallery = $('#album-gallery');
-        albums.forEach(album => {
-            const albumCard = `
-                <div class="col-md-4 mb-4">
-                    <div class="card" data-id="${album.id}">
-                        <img src="${album.coverImageUrl}" class="card-img-top" alt="${album.title}">
+          // Incrementa o número inicial
+          this.numeroInicio += 13;
+
+          // Verifica se alcançou ou ultrapassou o total de registros
+          if (this.numeroInicio > this.maxRecords) {
+            console.log("Fim dos registros. Reiniciando...");
+            this.numeroInicio = 1; 
+          }
+
+          console.log("Próximo numeroInicio:", this.numeroInicio);
+        }
+      })
+      .catch((error) => {
+        alert("Erro ao carregar álbuns.");
+        console.error(error);
+      })
+      .finally(() => {
+        $("#loading").addClass("d-none"); // Esconde o loader
+      });
+  }
+
+  // Função para renderizar os álbuns na tela
+  renderAlbums(albums) {
+    console.log("registros", albums);
+
+    const gallery = $("#album-gallery");
+    albums.forEach((album) => {
+      const albumCard = `
+                <article class="card-main" data-id="${album.id}">
+                    <img class="img" src="data:image/jpeg;base64,${album.imagemEmBase64}" alt="${album.descricaoPrimaria}" />
                         <div class="card-body">
-                            <h5 class="card-title">${album.title}</h5>
+                            <h5 class="title">${album.id} - ${album.descricaoPrimaria}</h5>
+                            <span class="description">${album.descricaoSecundaria}</span>
                         </div>
-                    </div>
-                </div>
+                </article>
             `;
-            gallery.append(albumCard);
-        });
+      gallery.append(albumCard);
+    });
 
-        // Adiciona o evento de clique nas capas dos álbuns
-        $('.card').on('click', (event) => {
-            const albumId = $(event.currentTarget).data('id');
-            this.showAlbumDetails(albumId);
-        });
-    }
+    // Adiciona o evento de clique nas capas dos álbuns
+    $(".card-main").on("click", (event) => {
+      const albumId = $(event.currentTarget).data("id");
+      this.showAlbumDetails(albumId);
+    });
+  }
 
-    // Função para exibir detalhes de um álbum na modal
-    showAlbumDetails(albumId) {
-        $('#loading').removeClass('d-none');  // Exibe o loader
+  // Função para exibir detalhes de um álbum na modal
+  showAlbumDetails(albumId) {
+    $("#loading").removeClass("d-none"); // Exibe o loader
 
-        fetch(`${this.apiUrl}/record?id=${albumId}`, {
-            method: 'GET',
-            headers: {
-                'accept': '*/*',
-                'TokenApiUCS': this.authToken
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            const album = data.record;
-            $('#modal-image').attr('src', album.coverImageUrl);
-            $('#modal-title').text(album.title);
-            $('#modal-description').text(album.description);
-            const modal = new bootstrap.Modal(document.getElementById('albumModal'));
-            modal.show();
-        })
-        .catch(error => {
-            alert("Erro ao carregar detalhes do álbum.");
-            console.error(error);
-        })
-        .finally(() => $('#loading').addClass('d-none'));  // Esconde o loader
-    }
+    fetch(`${this.apiUrl}/record?numero=${albumId}`, {
+      method: "GET",
+      headers: {
+        accept: "*/*",
+        TokenApiUCS: this.authToken,
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        const album = data;
+        // $("#modal-image").attr("src", album.coverImageUrl);
+        $("#modal-title").text(`${album.id} - ${album.descricaoPrimaria}`);
+        $("#modal-description").text(album.descricaoSecundaria);
+        const modal = new bootstrap.Modal(
+          document.getElementById("albumModal")
+        );
+        modal.show();
+      })
+      .catch((error) => {
+        alert("Erro ao carregar detalhes do álbum.");
+        console.error(error);
+      })
+      .finally(() => $("#loading").addClass("d-none")); // Esconde o loader
+  }
 
-    // Função para verificar a rolagem infinita (load more albums)
-    enableInfiniteScroll() {
-        $(window).on('scroll', () => {
-            if ($(window).scrollTop() + $(window).height() == $(document).height()) {
-                this.loadAlbums();  // Carrega mais álbuns quando o usuário chega ao final da página
-            }
-        });
-    }
+  enableInfiniteScroll() {
+    $(window).on("scroll", () => {
+      if ($(window).scrollTop() + $(window).height() == $(document).height()) {
+        this.loadAlbums(); // Carrega mais álbuns quando o usuário chega ao final da página
+      }
+    });
+  }
 }
 
 // Iniciar a aplicação
-$(document).ready(function() {
-    const discosApi = new DiscosAPI();
-    
-    // Autentica e começa a carregar os álbuns
-    discosApi.authenticate();
+$(document).ready(function () {
+  const discosApi = new DiscosAPI();
 
-    // Ativa a rolagem infinita
-    discosApi.enableInfiniteScroll();
+  // Autentica e começa a carregar os álbuns
+  discosApi.authenticate();
+
+  // Ativa a rolagem infinita
+  discosApi.enableInfiniteScroll();
 });
-
