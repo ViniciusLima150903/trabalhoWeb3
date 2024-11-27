@@ -95,4 +95,27 @@ body {
       }
     }
   }
+  .modal {
+    .modal-content {
+      .modal-header {
+        > .modal-title {
+          font-size: 0.875rem;
+          color: #3f3f3f;
+          font-weight: 700;
+        }
+      }
+      .modal-body {
+        #modal-title {
+          font-size: 0.875rem;
+          color: #3f3f3f;
+          font-weight: 500;
+          margin-bottom: 0;
+        }
+        #modal-description {
+          font-size: 0.75rem;
+          color: #606060;
+        }
+      }
+    }
+  }
 }

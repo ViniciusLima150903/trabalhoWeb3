@@ -126,7 +126,7 @@ class DiscosAPI {
       .then((response) => response.json())
       .then((data) => {
         const album = data;
-        // $("#modal-image").attr("src", album.coverImageUrl);
+        $("#modal-image").attr("src", `data:image/jpeg;base64,${album.imagemEmBase64}`);
         $("#modal-title").text(`${album.id} - ${album.descricaoPrimaria}`);
         $("#modal-description").text(album.descricaoSecundaria);
         const modal = new bootstrap.Modal(
