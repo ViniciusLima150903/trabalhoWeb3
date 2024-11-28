@@ -2,10 +2,11 @@ class DiscosAPI {
   constructor() {
     this.apiUrl = "https://ucsdiscosapi.azurewebsites.net/Discos";
     this.authToken = null;
-    this.currentPage = 1; // Página inicial para carregar álbuns
-    this.pageSize = 7; // Quantidade de registros por página
-    this.numeroInicio = 1; // Primeiro registro
-    this.maxRecords = 98; // Número máximo de registros
+    this.currentPage = 1;
+    this.pageSize = 7;
+    this.numeroInicio = 1;
+    this.maxRecords = 99;
+    this.allRecordsLoaded = false;
   }
 
   // Função para autenticar e obter o token
@@ -40,9 +41,15 @@ class DiscosAPI {
       .finally(() => $("#loading").addClass("d-none")); // Esconde o loader
   }
 
-  // Função para carregar os álbuns (records)
   loadAlbums() {
-    if (!this.authToken) return; // Se não houver token, não faz nada
+    if (!this.authToken) return; 
+
+    if (this.allRecordsLoaded) {
+      alert("Todos os registros carregados.");
+
+      $("html, body").animate({ scrollTop: 0 }, "slow"); 
+      return; 
+    }
 
     $("#loading").removeClass("d-none"); // Exibe o loader
 
@@ -66,13 +73,12 @@ class DiscosAPI {
         if (data.length > 0) {
           this.renderAlbums(data);
 
-          // Incrementa o número inicial
-          this.numeroInicio += 13;
-
-          // Verifica se alcançou ou ultrapassou o total de registros
-          if (this.numeroInicio > this.maxRecords) {
-            console.log("Fim dos registros. Reiniciando...");
-            this.numeroInicio = 1; 
+          // Verifica se estamos no ultimo carregamento
+          if (this.numeroInicio + this.pageSize > this.maxRecords) {
+            this.numeroInicio = this.maxRecords;
+            this.allRecordsLoaded = true;
+          } else {
+            this.numeroInicio += this.pageSize;
           }
 
           console.log("Próximo numeroInicio:", this.numeroInicio);
@@ -83,14 +89,12 @@ class DiscosAPI {
         console.error(error);
       })
       .finally(() => {
-        $("#loading").addClass("d-none"); // Esconde o loader
+        $("#loading").addClass("d-none"); 
       });
   }
 
   // Função para renderizar os álbuns na tela
   renderAlbums(albums) {
-    console.log("registros", albums);
-
     const gallery = $("#album-gallery");
     albums.forEach((album) => {
       const albumCard = `
@@ -126,7 +130,10 @@ class DiscosAPI {
       .then((response) => response.json())
       .then((data) => {
         const album = data;
-        $("#modal-image").attr("src", `data:image/jpeg;base64,${album.imagemEmBase64}`);
+        $("#modal-image").attr(
+          "src",
+          `data:image/jpeg;base64,${album.imagemEmBase64}`
+        );
         $("#modal-title").text(`${album.id} - ${album.descricaoPrimaria}`);
         $("#modal-description").text(album.descricaoSecundaria);
         const modal = new bootstrap.Modal(
