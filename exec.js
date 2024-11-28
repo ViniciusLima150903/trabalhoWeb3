@@ -3,7 +3,7 @@ class DiscosAPI {
     this.apiUrl = "https://ucsdiscosapi.azurewebsites.net/Discos";
     this.authToken = null;
     this.currentPage = 1;
-    this.pageSize = 7;
+    this.pageSize = 12; // Inicia com 12 registros
     this.numeroInicio = 1;
     this.maxRecords = 99;
     this.allRecordsLoaded = false;
@@ -29,7 +29,7 @@ class DiscosAPI {
       .then((token) => {
         try {
           this.authToken = token;
-          this.loadAlbums();
+          this.loadAlbums(); // Chama a função para carregar os álbuns assim que a autenticação for concluída
         } catch (error) {
           alert("Erro ao autenticar. Resposta inválida da API.");
         }
@@ -42,13 +42,13 @@ class DiscosAPI {
   }
 
   loadAlbums() {
-    if (!this.authToken) return; 
+    if (!this.authToken) return;
 
     if (this.allRecordsLoaded) {
       alert("Todos os registros carregados.");
 
-      $("html, body").animate({ scrollTop: 0 }, "slow"); 
-      return; 
+      $("html, body").animate({ scrollTop: 0 }, "slow");
+      return;
     }
 
     $("#loading").removeClass("d-none"); // Exibe o loader
@@ -73,12 +73,12 @@ class DiscosAPI {
         if (data.length > 0) {
           this.renderAlbums(data);
 
-          // Verifica se estamos no ultimo carregamento
+          // Verifica se estamos no último carregamento
           if (this.numeroInicio + this.pageSize > this.maxRecords) {
             this.numeroInicio = this.maxRecords;
             this.allRecordsLoaded = true;
           } else {
-            this.numeroInicio += this.pageSize;
+            this.numeroInicio += this.pageSize; // Avança para o próximo conjunto de registros
           }
 
           console.log("Próximo numeroInicio:", this.numeroInicio);
@@ -89,7 +89,7 @@ class DiscosAPI {
         console.error(error);
       })
       .finally(() => {
-        $("#loading").addClass("d-none"); 
+        $("#loading").addClass("d-none");
       });
   }
 
@@ -151,6 +151,7 @@ class DiscosAPI {
   enableInfiniteScroll() {
     $(window).on("scroll", () => {
       if ($(window).scrollTop() + $(window).height() == $(document).height()) {
+        this.pageSize = 4; // Carrega 4 novos registros ao atingir o final da página
         this.loadAlbums(); // Carrega mais álbuns quando o usuário chega ao final da página
       }
     });
@@ -166,4 +167,6 @@ $(document).ready(function () {
 
   // Ativa a rolagem infinita
   discosApi.enableInfiniteScroll();
-});
+});  
+
+
