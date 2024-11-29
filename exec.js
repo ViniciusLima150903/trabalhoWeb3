@@ -2,10 +2,9 @@ class DiscosAPI {
   constructor() {
     this.apiUrl = "https://ucsdiscosapi.azurewebsites.net/Discos";
     this.authToken = null;
-    this.currentPage = 1;
     this.pageSize = 12; // Inicia com 12 registros
     this.numeroInicio = 1;
-    this.maxRecords = 99;
+    this.maxRecords = 105; // Total de registros na API
     this.allRecordsLoaded = false;
   }
 
@@ -27,12 +26,8 @@ class DiscosAPI {
         return response.text();
       })
       .then((token) => {
-        try {
-          this.authToken = token;
-          this.loadAlbums(); // Chama a função para carregar os álbuns assim que a autenticação for concluída
-        } catch (error) {
-          alert("Erro ao autenticar. Resposta inválida da API.");
-        }
+        this.authToken = token;
+        this.loadAlbums(); // Carrega os álbuns após autenticar
       })
       .catch((error) => {
         alert("Erro ao autenticar. Tente novamente.");
@@ -42,19 +37,14 @@ class DiscosAPI {
   }
 
   loadAlbums() {
-    if (!this.authToken) return;
-
-    if (this.allRecordsLoaded) {
-      alert("Todos os registros carregados.");
-
-      $("html, body").animate({ scrollTop: 0 }, "slow");
-      return;
-    }
+    if (!this.authToken || this.allRecordsLoaded) return;
 
     $("#loading").removeClass("d-none"); // Exibe o loader
 
+    const quantidade = Math.min(this.pageSize, this.maxRecords - this.numeroInicio + 1); // Calcula a quantidade de registros a carregar
+
     fetch(
-      `${this.apiUrl}/records?numeroInicio=${this.numeroInicio}&quantidade=${this.pageSize}`,
+      `${this.apiUrl}/records?numeroInicio=${this.numeroInicio}&quantidade=${quantidade}`,
       {
         method: "GET",
         headers: {
@@ -65,7 +55,7 @@ class DiscosAPI {
     )
       .then((response) => {
         if (!response.ok) {
-          throw new Error("Erro na resposta da autenticação");
+          throw new Error("Erro na resposta da API");
         }
         return response.json();
       })
@@ -73,16 +63,19 @@ class DiscosAPI {
         if (data.length > 0) {
           this.renderAlbums(data);
 
-          // Verifica se estamos no último carregamento
-          if (this.numeroInicio + this.pageSize > this.maxRecords) {
-            this.numeroInicio = this.maxRecords;
-            this.allRecordsLoaded = true;
-          } else {
-            this.numeroInicio += this.pageSize; // Avança para o próximo conjunto de registros
-          }
+          this.numeroInicio += data.length; // Avança o número inicial
 
-          console.log("Próximo numeroInicio:", this.numeroInicio);
+          // Verifica se o último registro foi carregado
+          if (this.numeroInicio > this.maxRecords) {
+            this.allRecordsLoaded = true; // Marca que todos os registros foram carregados
+            this.promptRestart(); // Exibe a mensagem de reinício
+          }
+        } else {
+          this.allRecordsLoaded = true; // Marca como concluído se nenhum dado for retornado
+          this.promptRestart(); // Exibe a mensagem de reinício
         }
+
+        console.log("Próximo numeroInicio:", this.numeroInicio);
       })
       .catch((error) => {
         alert("Erro ao carregar álbuns.");
@@ -93,30 +86,28 @@ class DiscosAPI {
       });
   }
 
-  // Função para renderizar os álbuns na tela
   renderAlbums(albums) {
     const gallery = $("#album-gallery");
     albums.forEach((album) => {
       const albumCard = `
-                <article class="card-main" data-id="${album.id}">
-                    <img class="img" src="data:image/jpeg;base64,${album.imagemEmBase64}" alt="${album.descricaoPrimaria}" />
-                        <div class="card-body">
-                            <h5 class="title">${album.id} - ${album.descricaoPrimaria}</h5>
-                            <span class="description">${album.descricaoSecundaria}</span>
-                        </div>
-                </article>
-            `;
+        <article class="card-main" data-id="${album.id}">
+          <img class="img" src="data:image/jpeg;base64,${album.imagemEmBase64}" alt="${album.descricaoPrimaria}" />
+          <div class="card-body">
+            <h5 class="title">${album.id} - ${album.descricaoPrimaria}</h5>
+            <span class="description">${album.descricaoSecundaria}</span>
+          </div>
+        </article>
+      `;
       gallery.append(albumCard);
     });
 
-    // Adiciona o evento de clique nas capas dos álbuns
+    // Adiciona o evento de clique nos álbuns
     $(".card-main").on("click", (event) => {
       const albumId = $(event.currentTarget).data("id");
       this.showAlbumDetails(albumId);
     });
   }
 
-  // Função para exibir detalhes de um álbum na modal
   showAlbumDetails(albumId) {
     $("#loading").removeClass("d-none"); // Exibe o loader
 
@@ -151,10 +142,28 @@ class DiscosAPI {
   enableInfiniteScroll() {
     $(window).on("scroll", () => {
       if ($(window).scrollTop() + $(window).height() == $(document).height()) {
-        this.pageSize = 4; // Carrega 4 novos registros ao atingir o final da página
-        this.loadAlbums(); // Carrega mais álbuns quando o usuário chega ao final da página
+        this.pageSize = 4; // Carrega 4 registros por vez no scroll
+        this.loadAlbums(); // Carrega mais álbuns
       }
     });
+  }
+
+  promptRestart() {
+    if (this.allRecordsLoaded) {
+      const restart = confirm("Todos os registros carregados. Deseja voltar para o início?");
+      if (restart) {
+        $("html, body").animate({ scrollTop: 0 }, "slow");
+        this.resetGallery();
+      }
+    }
+  }
+
+  resetGallery() {
+    this.numeroInicio = 1;
+    this.allRecordsLoaded = false;
+    this.pageSize = 12; // Reinicia o carregamento com 12 registros
+    $("#album-gallery").empty(); // Limpa os álbuns carregados
+    this.loadAlbums(); // Carrega os álbuns novamente
   }
 }
 
@@ -162,11 +171,9 @@ class DiscosAPI {
 $(document).ready(function () {
   const discosApi = new DiscosAPI();
 
-  // Autentica e começa a carregar os álbuns
+  // Autentica e carrega os álbuns iniciais
   discosApi.authenticate();
 
-  // Ativa a rolagem infinita
+  // Ativa o carregamento infinito
   discosApi.enableInfiniteScroll();
-});  
-
-
+});
