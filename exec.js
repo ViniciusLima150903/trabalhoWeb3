@@ -45,9 +45,8 @@ class DiscosAPI {
     if (!this.authToken) return;
 
     if (this.allRecordsLoaded) {
-      alert("Todos os registros carregados.");
-      $("html, body").animate({ scrollTop: 0 }, "slow");
-      return;
+      this.numeroInicio = 1;
+      this.allRecordsLoaded = false;
     }
 
     $("#loading").removeClass("d-none"); // Exibe o loader
@@ -77,12 +76,12 @@ class DiscosAPI {
         if (data.length > 0) {
           this.renderAlbums(data);
 
+          // Ajusta o controle de registros carregados
           if (this.numeroInicio + this.pageSize >= this.maxRecords) {
-            this.allRecordsLoaded = true;
+            this.allRecordsLoaded = true; // Marca como todos os registros carregados
           } else {
-            this.numeroInicio += this.pageSize;
+            this.numeroInicio += this.pageSize; // Incrementa para os próximos registros
           }
-
         }
       })
       .catch((error) => {
@@ -90,7 +89,7 @@ class DiscosAPI {
         console.error(error);
       })
       .finally(() => {
-        $("#loading").addClass("d-none");
+        $("#loading").addClass("d-none"); // Esconde o loader
       });
   }
 
@@ -144,6 +143,7 @@ class DiscosAPI {
       .catch((error) => {
         alert("Erro ao carregar detalhes do álbum.");
         console.error(error);
+        return;
       })
       .finally(() => $("#loading").addClass("d-none")); // Esconde o loader
   }
