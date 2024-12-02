@@ -2,9 +2,10 @@ class DiscosAPI {
   constructor() {
     this.apiUrl = "https://ucsdiscosapi.azurewebsites.net/Discos";
     this.authToken = null;
-    this.pageSize = 12; // Inicia com 12 registros
+    this.currentPage = 1;
+    this.pageSize = 12;
     this.numeroInicio = 1;
-    this.maxRecords = 105; // Total de registros na API
+    this.maxRecords = 105;
     this.allRecordsLoaded = false;
   }
 
@@ -26,8 +27,12 @@ class DiscosAPI {
         return response.text();
       })
       .then((token) => {
-        this.authToken = token;
-        this.loadAlbums(); // Carrega os álbuns após autenticar
+        try {
+          this.authToken = token;
+          this.loadAlbums();
+        } catch (error) {
+          alert("Erro ao autenticar. Resposta inválida da API.");
+        }
       })
       .catch((error) => {
         alert("Erro ao autenticar. Tente novamente.");
@@ -37,11 +42,20 @@ class DiscosAPI {
   }
 
   loadAlbums() {
-    if (!this.authToken || this.allRecordsLoaded) return;
+    if (!this.authToken) return;
+
+    if (this.allRecordsLoaded) {
+      alert("Todos os registros carregados.");
+      $("html, body").animate({ scrollTop: 0 }, "slow");
+      return;
+    }
 
     $("#loading").removeClass("d-none"); // Exibe o loader
 
-    const quantidade = Math.min(this.pageSize, this.maxRecords - this.numeroInicio + 1); // Calcula a quantidade de registros a carregar
+    const quantidade =
+      this.numeroInicio + this.pageSize > this.maxRecords
+        ? this.maxRecords - this.numeroInicio + 1
+        : this.pageSize;
 
     fetch(
       `${this.apiUrl}/records?numeroInicio=${this.numeroInicio}&quantidade=${quantidade}`,
@@ -63,19 +77,14 @@ class DiscosAPI {
         if (data.length > 0) {
           this.renderAlbums(data);
 
-          this.numeroInicio += data.length; // Avança o número inicial
-
-          // Verifica se o último registro foi carregado
-          if (this.numeroInicio > this.maxRecords) {
-            this.allRecordsLoaded = true; // Marca que todos os registros foram carregados
-            this.promptRestart(); // Exibe a mensagem de reinício
+          if (this.numeroInicio + this.pageSize >= this.maxRecords) {
+            this.allRecordsLoaded = true;
+          } else {
+            this.numeroInicio += this.pageSize;
           }
-        } else {
-          this.allRecordsLoaded = true; // Marca como concluído se nenhum dado for retornado
-          this.promptRestart(); // Exibe a mensagem de reinício
-        }
 
-        console.log("Próximo numeroInicio:", this.numeroInicio);
+          console.log("Próximo numeroInicio:", this.numeroInicio);
+        }
       })
       .catch((error) => {
         alert("Erro ao carregar álbuns.");
@@ -86,18 +95,19 @@ class DiscosAPI {
       });
   }
 
+  // Função para renderizar os álbuns na tela
   renderAlbums(albums) {
     const gallery = $("#album-gallery");
     albums.forEach((album) => {
       const albumCard = `
-        <article class="card-main" data-id="${album.id}">
-          <img class="img" src="data:image/jpeg;base64,${album.imagemEmBase64}" alt="${album.descricaoPrimaria}" />
-          <div class="card-body">
-            <h5 class="title">${album.id} - ${album.descricaoPrimaria}</h5>
-            <span class="description">${album.descricaoSecundaria}</span>
-          </div>
-        </article>
-      `;
+                <article class="card-main" data-id="${album.id}">
+                    <img class="img" src="data:image/jpeg;base64,${album.imagemEmBase64}" alt="${album.descricaoPrimaria}" />
+                        <div class="card-body">
+                            <h5 class="title">${album.id} - ${album.descricaoPrimaria}</h5>
+                            <span class="description">${album.descricaoSecundaria}</span>
+                        </div>
+                </article>
+            `;
       gallery.append(albumCard);
     });
 
@@ -142,28 +152,9 @@ class DiscosAPI {
   enableInfiniteScroll() {
     $(window).on("scroll", () => {
       if ($(window).scrollTop() + $(window).height() == $(document).height()) {
-        this.pageSize = 4; // Carrega 4 registros por vez no scroll
-        this.loadAlbums(); // Carrega mais álbuns
+        this.loadAlbums(); // Carrega mais álbuns quando o usuário chega ao final da página
       }
     });
-  }
-
-  promptRestart() {
-    if (this.allRecordsLoaded) {
-      const restart = confirm("Todos os registros carregados. Deseja voltar para o início?");
-      if (restart) {
-        $("html, body").animate({ scrollTop: 0 }, "slow");
-        this.resetGallery();
-      }
-    }
-  }
-
-  resetGallery() {
-    this.numeroInicio = 1;
-    this.allRecordsLoaded = false;
-    this.pageSize = 12; // Reinicia o carregamento com 12 registros
-    $("#album-gallery").empty(); // Limpa os álbuns carregados
-    this.loadAlbums(); // Carrega os álbuns novamente
   }
 }
 
@@ -171,9 +162,9 @@ class DiscosAPI {
 $(document).ready(function () {
   const discosApi = new DiscosAPI();
 
-  // Autentica e carrega os álbuns iniciais
+  // Autentica e começa a carregar os álbuns
   discosApi.authenticate();
 
-  // Ativa o carregamento infinito
+  // Ativa a rolagem infinita
   discosApi.enableInfiniteScroll();
 });
