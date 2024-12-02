@@ -83,7 +83,6 @@ class DiscosAPI {
             this.numeroInicio += this.pageSize;
           }
 
-          console.log("Próximo numeroInicio:", this.numeroInicio);
         }
       })
       .catch((error) => {
